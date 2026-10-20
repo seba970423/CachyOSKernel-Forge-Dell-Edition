@@ -108,6 +108,11 @@ retained; see [POST-INSTALL-CLEANUP.md](POST-INSTALL-CLEANUP.md).
   including Hardened's disabled hibernation, is respected.
 - RT graphics compatibility continues to use CachyOS's upstream i915 patches.
 
+Missing or locally expired signing keys are imported/refreshed automatically
+using only the full fingerprints pinned by the selected upstream PKGBUILD.
+No import confirmation is needed. Existing usable keys are left alone.
+If key retrieval or verification fails, source preparation stops with an error.
+
 Upstream checksums and PGP verification remain active. The validated source
 tree is reused for compilation with `makepkg --noextract`.
 A required driver disabled in an upstream baseline causes validation to fail;

@@ -4,8 +4,8 @@
 #
 # makepkg verifies signed sources with the invoking user's GnuPG keyring.
 # We inspect the selected upstream PKGBUILD's validpgpkeys entries before
-# source preparation, then offer to retrieve only fingerprints explicitly
-# pinned by that PKGBUILD. Signature verification itself is never bypassed.
+# source preparation, then automatically retrieve missing or locally expired
+# keys pinned by that PKGBUILD. Signature verification is never bypassed.
 
 pgp_info() {
     printf '==> %s\n' "$*" >&2
@@ -22,10 +22,16 @@ pgp_error() {
 upstream_valid_pgp_keys() {
     local package_dir="$1"
 
-    (
-        cd "$package_dir"
-        makepkg --printsrcinfo
-    ) 2>/dev/null |
+    local srcinfo
+
+    if ! srcinfo="$(
+        cd "$package_dir" && makepkg --printsrcinfo
+    )"; then
+        pgp_error "Could not read signing-key fingerprints from $package_dir/PKGBUILD."
+        return 1
+    fi
+
+    printf '%s\n' "$srcinfo" |
         awk -F ' = ' '
             /^[[:space:]]*validpgpkeys[[:space:]]*=/ {
                 key=$2
@@ -92,13 +98,16 @@ ensure_upstream_pgp_keys() {
     local -a needs_attention=()
     local fingerprint
     local state
-    local answer
+    local fingerprints
 
     pgp_info "Checking upstream PGP signing keys..."
 
+    if ! fingerprints="$(upstream_valid_pgp_keys "$package_dir")"; then
+        return 1
+    fi
     while IFS= read -r fingerprint; do
         [[ -n "$fingerprint" ]] && required+=("$fingerprint")
-    done < <(upstream_valid_pgp_keys "$package_dir")
+    done <<< "$fingerprints"
 
     if (( ${#required[@]} == 0 )); then
         pgp_info "Selected PKGBUILD declares no validpgpkeys; nothing to import."
@@ -106,17 +115,21 @@ ensure_upstream_pgp_keys() {
     fi
 
     for fingerprint in "${required[@]}"; do
+        if [[ ! "$fingerprint" =~ ^([[:xdigit:]]{40}|[[:xdigit:]]{64})$ ]]; then
+            pgp_error "Upstream validpgpkeys entry is not a full fingerprint: $fingerprint"
+            return 1
+        fi
         state="$(pgp_key_state "$fingerprint")"
 
         case "$state" in
             present)
                 ;;
             missing)
-                pgp_warn "Required upstream signing key is missing: $fingerprint"
+                pgp_info "Upstream signing key needs import: $fingerprint"
                 needs_attention+=("$fingerprint")
                 ;;
             expired)
-                pgp_warn "Required upstream signing key is expired locally: $fingerprint"
+                pgp_info "Upstream signing key needs refresh: $fingerprint"
                 needs_attention+=("$fingerprint")
                 ;;
             *)
@@ -131,22 +144,7 @@ ensure_upstream_pgp_keys() {
         return 0
     fi
 
-    printf '\n' >&2
-    printf 'The selected upstream PKGBUILD explicitly trusts these full fingerprints:\n' >&2
-    printf '  %s\n' "${needs_attention[@]}" >&2
-    printf '\n' >&2
-    printf 'Forge will retrieve only these pinned fingerprints and will keep makepkg\n' >&2
-    printf 'signature verification enabled.\n' >&2
-
-    read -r -p "Import/refresh the missing upstream signing key(s)? [Y/n]: " answer
-
-    case "${answer:-y}" in
-        n|N|no|NO|No)
-            pgp_error "Required signing key import was declined."
-            pgp_error "Signature verification has NOT been bypassed."
-            return 1
-            ;;
-    esac
+    pgp_info "Retrieving required upstream signing keys automatically; signature verification stays enabled."
 
     for fingerprint in "${needs_attention[@]}"; do
         if ! receive_pgp_key "$fingerprint"; then

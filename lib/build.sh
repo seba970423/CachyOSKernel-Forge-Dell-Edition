@@ -53,7 +53,7 @@ prepare_upstream_source() {
 
     # This function is used in command substitution. Keep stdout reserved
     # exclusively for the final kernel-tree path.
-    ensure_upstream_pgp_keys "$package_dir"
+    ensure_upstream_pgp_keys "$package_dir" || return 1
 
     printf '==> Checking dependencies for %s...\n' "$variant" >&2
     printf '==> Missing PKGBUILD dependencies, if any, will be offered through pacman.\n' >&2

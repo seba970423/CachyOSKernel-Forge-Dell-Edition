@@ -12,6 +12,7 @@ done
 "$SCRIPT_DIR/test-hardware-detection.sh"
 "$SCRIPT_DIR/test-dell-profile.sh"
 "$SCRIPT_DIR/test-policy-prompts.sh"
+"$SCRIPT_DIR/test-pgp-keys.sh"
 "$SCRIPT_DIR/test-kernel-naming.sh"
 "$SCRIPT_DIR/test-validation-paths.sh"
 "$SCRIPT_DIR/test-tick-frequency.sh"
