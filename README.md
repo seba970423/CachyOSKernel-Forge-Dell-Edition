@@ -113,6 +113,13 @@ using only the full fingerprints pinned by the selected upstream PKGBUILD.
 No import confirmation is needed. Existing usable keys are left alone.
 If key retrieval or verification fails, source preparation stops with an error.
 
+For the known CachyOS 7.3 BORE patch checksum mismatch, the builder pins only
+the affected source URL to the historical commit matching the recipe's
+original BLAKE2b checksum. The override requires both the exact URL and the
+expected checksum at the same source-array index. Other sources and checksums
+retain the selected recipe's settings. Unknown mismatches still fail the
+ordinary integrity check.
+
 Upstream checksums and PGP verification remain active. The validated source
 tree is reused for compilation with `makepkg --noextract`.
 A required driver disabled in an upstream baseline causes validation to fail;
