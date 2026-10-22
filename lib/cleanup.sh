@@ -32,10 +32,10 @@ _kf_cleanup_validate() {
     # supplied path is ever accepted for deletion outside this workspace shape.
     [[ "$variant" =~ ^[a-zA-Z0-9][a-zA-Z0-9._+-]*$ && "$variant" != '.' && "$variant" != '..' ]] ||
         { _kf_cleanup_error 'invalid variant name'; return 1; }
-    [[ "$workdir" == /var/tmp/cachyos-kernel-build.* && -d "$workdir" && ! -L "$workdir" ]] ||
+    [[ "$workdir" == /var/tmp/kernelforge-dell-build.* && -d "$workdir" && ! -L "$workdir" ]] ||
         { _kf_cleanup_error 'not a real KernelForge workspace directory'; return 1; }
     basename="${workdir##*/}"
-    [[ "$basename" =~ ^cachyos-kernel-build\.[[:alnum:]]{6,}$ ]] ||
+    [[ "$basename" =~ ^kernelforge-dell-build\.[[:alnum:]]{6,}$ ]] ||
         { _kf_cleanup_error 'workspace name does not match the mktemp pattern'; return 1; }
     real_work="$(realpath -e -- "$workdir")" || return 1
     [[ "$real_work" == "$expected_root/$basename" ]] ||

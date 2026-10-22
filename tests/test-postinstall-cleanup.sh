@@ -6,7 +6,7 @@ source "$SCRIPT_DIR/../lib/cleanup.sh"
 
 new_fixture() {
     local root variant='linux-cachyos-rt-bore'
-    root="$(mktemp -d --tmpdir=/var/tmp cachyos-kernel-build.XXXXXX)"
+    root="$(mktemp -d --tmpdir=/var/tmp "${1:-kernelforge-dell-build.XXXXXX}")"
     printf 'kernelforge-workdir-v1\n' >"$root/.kernelforge-workdir"
     mkdir -p "$root/upstream/$variant/src/linux-7.2" "$root/upstream/$variant/pkg" "$root/tmp"
     printf 'CONFIG_PREEMPT_RT=y\n' >"$root/upstream/$variant/src/linux-7.2/.config"
@@ -25,6 +25,44 @@ fail() { printf 'TEST FAILURE: %s\n' "$*" >&2; exit 1; }
 assert_exists() { [[ -e "$1" ]] || fail "expected: $1"; }
 assert_absent() { [[ ! -e "$1" ]] || fail "unexpected: $1"; }
 variant='linux-cachyos-rt-bore'
+
+# Use the production entry point's real mktemp call and marker creation, with
+# source preparation, compilation and installation stubbed out. This catches
+# workspace naming drift between builder.sh and the cleanup validator.
+workflow_output="$(
+    REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+    eval "$(awk '/^main\(\) \{/ {printing=1} /^main "\$@"$/ {printing=0} printing' "$REPO_ROOT/builder.sh")"
+    require_build_commands() { :; }
+    load_profile() { :; }
+    validate_profile() { :; }
+    detect_hardware() { :; }
+    print_hardware_summary() { :; }
+    resolve_policy() { :; }
+    fetch_upstream() { :; }
+    select_kernel_variant() { printf 'linux-cachyos-rt-bore\n'; }
+    validate_kernel_variant() { :; }
+    prompt_kernel_name() { printf 'seba-rt-bore\n'; }
+    apply_custom_kernel_name() { :; }
+    install_upstream_prepare_compat() { :; }
+    prepare_upstream_source() { printf '%s/%s/src/linux-7.2\n' "$1" "$2"; }
+    configure_and_validate_kernel() { :; }
+    ask_compile() { return 1; }
+    main
+)"
+root="$(awk '/^==> Work directory: / {print $4}' <<<"$workflow_output")"
+[[ -n "$root" && -d "$root" ]] || fail 'builder did not create a workspace'
+trap '[[ -n "${root:-}" ]] && rm -rf --one-file-system -- "$root"' EXIT
+config="$root/upstream/$variant/src/linux-7.2"
+mkdir -p "$config"
+printf 'CONFIG_PREEMPT_RT=y\n' >"$config/.config"
+printf 'package bytes\n' >"$root/upstream/$variant/linux-sample.pkg.tar.zst"
+printf '%s\n' "$root/upstream/$variant/linux-sample.pkg.tar.zst" >"$root/upstream/$variant/.kernelforge-built-packages"
+kernelforge_cleanup_workdir "$root" "$variant" "$config"
+assert_absent "$root/upstream/$variant/src"
+assert_exists "$root/upstream/$variant/linux-sample.pkg.tar.zst"
+assert_exists "$root/artifacts/kernel-configs/$variant.config"
+rm -rf --one-file-system -- "$root"
+root=''
 
 # Successfully installed run: cleanup generated data only, keep all artifacts.
 root="$(new_fixture)"
@@ -72,6 +110,16 @@ if kernelforge_cleanup_workdir "$root" "$variant" "$config"; then fail 'unmarked
 assert_exists "$root/upstream/$variant/src/linux-7.2/kernel.o"
 rm -rf --one-file-system -- "$root"
 root=''
+
+# Only Dell workspaces with a full mktemp suffix may be cleaned.
+for template in cachyos-kernel-build.XXXXXX kernelforge-thinkpad-build.XXXXXX kernelforge-dell-build.XXXXX; do
+    root="$(new_fixture "$template")"
+    config="$root/upstream/$variant/src/linux-7.2"
+    if kernelforge_cleanup_workdir "$root" "$variant" "$config"; then fail "invalid workspace accepted: $template"; fi
+    assert_exists "$config/kernel.o"
+    rm -rf --one-file-system -- "$root"
+    root=''
+done
 
 # Symlinked src cannot be cleaned, even when it points to an unrelated tree.
 root="$(new_fixture)"
