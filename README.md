@@ -128,24 +128,3 @@ enabled protected driver or the Dell firmware group also fails validation
 before compilation.
 
 Keep a known-good kernel installed until the new build has booted successfully.
-
-## Validation status
-
-The Dell edition adds DMI fixtures covering the Latitude 7490, other Dell
-laptop families, Alienware, legacy Dell, desktops and missing firmware data.
-Regression tests check profile conflicts, lost Dell drivers, SMBIOS backends,
-ALPS input, changed optional/future Dell interfaces and the existing naming,
-policy, tuning, validation and cleanup workflows.
-
-```bash
-bash tests/run-tests.sh
-```
-
-The GitHub Actions workflow runs shell syntax checks and offline regression
-tests on pushes to main and pull requests. See the [Actions results](https://github.com/seba970423/CachyOSKernel-Forge-Dell-Edition/actions) for the current status.
-
-The reference configuration is an unchanged upstream CachyOS 7.2.11 packaging
-fixture, with provenance in [profiles/reference/README.md](profiles/reference/README.md).
-It is not captured Dell hardware data. This Dell edition has not yet been
-compiled or boot-tested on a Latitude 7490, and the original ThinkPad edition's
-build/boot results do not establish Dell validation.
