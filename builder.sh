@@ -7,6 +7,7 @@ REPO_ROOT="$SCRIPT_DIR"
 source "$REPO_ROOT/lib/upstream.sh"
 source "$REPO_ROOT/lib/pgp.sh"
 source "$REPO_ROOT/lib/build.sh"
+source "$REPO_ROOT/lib/sched-compat.sh"
 source "$REPO_ROOT/lib/naming.sh"
 source "$REPO_ROOT/lib/profile.sh"
 source "$REPO_ROOT/lib/hardware.sh"
@@ -48,6 +49,14 @@ compile_selected_kernel() {
     printf '==> prepare() will NOT be run again.\n'
     printf '==> Detailed build log: %s\n' "$log_file"
 
+    # The kernel is already prepared and its configuration validated. Repair
+    # only the known BORE source mismatch and compile fair.o as a cheap gate
+    # before launching the multi-minute full kernel build.
+    local tree
+    tree="$(find_kernel_tree "$package_dir")" || return 1
+    kernelforge_apply_sched_compat "$tree" || return 1
+    kernelforge_sched_smoke_test "$tree" "$package_dir/.kernelforge-sched-smoke.log" || return 1
+
     # --noextract (-e) is critical here: our final validated .config lives in
     # the existing src/ tree. Re-extracting or rerunning prepare() would
     # discard that validated state.
@@ -68,8 +77,7 @@ compile_selected_kernel() {
 
     if ! wait "$build_pid"; then
         printf 'ERROR: Kernel package build failed.\n' >&2
-        printf '%s\n' '--- Last 120 lines of build log ---' >&2
-        tail -n 120 "$log_file" >&2 || true
+        kernelforge_show_build_errors "$log_file"
         return 1
     fi
 
