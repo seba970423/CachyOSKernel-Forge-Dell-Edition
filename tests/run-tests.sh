@@ -21,4 +21,6 @@ bash "$SCRIPT_DIR/test-upstream-source-compat.sh"
 "$SCRIPT_DIR/test-postinstall-cleanup.sh"
 bash "$SCRIPT_DIR/test-debug-compression.sh"
 
+bash "$SCRIPT_DIR/test-sched-compat.sh"
+
 printf 'All KernelForge Dell Edition tests passed.\n'
